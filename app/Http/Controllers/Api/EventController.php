@@ -2,49 +2,38 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Traits\CanLoadRelationships;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class EventController extends Controller
+class EventController extends Controller implements HasMiddleware
 {
-    /**
-     * Display a listing of the resource.
-     */
+    use CanLoadRelationships;
+
+    private array $relations = ['user', 'attendees', 'attendees.user'];
+
+    public static function middleware(): array
+    {
+        return [
+            'auth:sanctum',
+            new Middleware('auth:sanctum', except: ['index', 'show']),
+        ];
+    }
     public function index()
     {
         $query = Event::query();
-        $relations = ['user', 'attendees', 'attendees.user'];
 
-        foreach ($relations as $relation) {
-            $query->when(
-                $this->shouldIncludeRelation($relation),
-                fn($q) => $q->with($relation)
-            );
-        }
+        $query = $this->loadRelationships(Event::query());
 
         return EventResource::collection(
             $query->latest()->paginate()
         );
     }
-    
-    protected function shouldIncludeRelation(string $relation): bool
-    {
-        $include = request()->query('include');
 
-        if (!$include) {
-            return false;
-        }
-
-        $relations = array_map('trim', explode(',', $include));
-
-        return in_array($relation, $relations);
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         $event = Event::create([
@@ -54,10 +43,10 @@ class EventController extends Controller
                 'start_time' => 'required|date',
                 'end_time' => 'required|date|after:start_time'
             ]),
-            'user_id' => 1
+            'user_id' => $request->user()->id
         ]);
 
-        return new EventResource($event);
+        return new EventResource($this->loadRelationships($event));
     }
 
     /**
@@ -65,9 +54,8 @@ class EventController extends Controller
      */
     public function show(Event $event)
     {
-        $event->load('user', 'attendees');
 
-        return new EventResource($event);
+        return new EventResource($this->loadRelationships($event));
     }
 
     /**
@@ -84,7 +72,7 @@ class EventController extends Controller
             ])
         );
 
-        return new EventResource($event);
+        return new EventResource($this->loadRelationships($event));
     }
 
     /**
