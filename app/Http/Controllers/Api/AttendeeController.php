@@ -27,7 +27,7 @@ class AttendeeController extends Controller
     public function store(Request $request, Event $event)
     {
         $attendee = $event->attendees()->create([
-            'user_id' => 1
+            'user_id' => $request->user()->id,
         ]);
 
         return new AttendeeResource($attendee);
@@ -54,7 +54,6 @@ class AttendeeController extends Controller
      */
     public function destroy(Event $event, Attendee $attendee)
     {
-        Gate::authorize('delete-event', [$event, $attendee]);
         $attendee->delete();
 
         return response(status: 204);

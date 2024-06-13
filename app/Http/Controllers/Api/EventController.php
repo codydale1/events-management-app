@@ -23,6 +23,8 @@ class EventController extends Controller implements HasMiddleware
         return [
             'auth:sanctum',
             new Middleware('auth:sanctum', except: ['index', 'show']),
+            'throttle:api',
+            new Middleware('throttle:api'),
         ];
     }
     public function index(Event $event)
